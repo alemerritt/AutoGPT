@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Anchor Down: A Vanderbilt Campus Adventure (Mobile)</title>
+<style>
+  :root{
+    --vandy-gold:#CFAE70; --vandy-gold-bright:#E8C87E; --vandy-black:#1a1a1a;
+    --ui-bg:rgba(16,18,22,.88); --ui-border:rgba(207,174,112,.55);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{width:100%;height:100%;overflow:hidden;background:#0b0d10;font-family:Georgia,'Times New Roman',serif;
+    position:fixed;inset:0;overscroll-behavior:none;touch-action:none;
+    -webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+  #game{display:block;width:100vw;height:100vh;height:100dvh;touch-action:none}
+
+  /* ---------- HUD ---------- */
+  #hud{position:fixed;top:10px;left:10px;display:flex;flex-direction:column;gap:6px;pointer-events:none;z-index:5}
+  .hud-card{background:var(--ui-bg);border:1px solid var(--ui-border);border-radius:10px;
+    padding:8px 14px;color:#f0e6d2;font-size:14px;backdrop-filter:blur(4px);box-shadow:0 2px 10px rgba(0,0,0,.4)}
+  .hud-title{font-weight:bold;color:var(--vandy-gold-bright);letter-spacing:.5px;font-size:15px}
+  .hud-row{display:flex;gap:14px;align-items:center;white-space:nowrap}
+  .stat{display:flex;gap:5px;align-items:center}
+  #clock{position:fixed;top:10px;right:10px;z-index:5;pointer-events:none}
+  #objective{max-width:290px;font-size:13px;line-height:1.45}
+  #objective .done{color:#8fd18f;text-decoration:line-through}
+  #prompt{position:fixed;left:50%;bottom:22%;transform:translateX(-50%);z-index:5;pointer-events:none;
+    background:var(--ui-bg);border:1px solid var(--ui-border);color:#f5ecd8;border-radius:22px;
+    padding:8px 20px;font-size:15px;display:none;box-shadow:0 3px 14px rgba(0,0,0,.5)}
+  #prompt b{color:var(--vandy-gold-bright)}
+  #toast{position:fixed;left:50%;top:14%;transform:translateX(-50%);z-index:6;pointer-events:none;
+    background:rgba(20,16,8,.92);border:1px solid var(--vandy-gold);color:var(--vandy-gold-bright);
+    border-radius:10px;padding:10px 22px;font-size:16px;display:none;text-align:center;box-shadow:0 4px 18px rgba(0,0,0,.6)}
+
+  /* ---------- Dialog ---------- */
+  #dialog{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);width:min(620px,92vw);
+    background:var(--ui-bg);border:2px solid var(--ui-border);border-radius:14px;color:#f0e6d2;
+    padding:16px 20px;z-index:10;display:none;box-shadow:0 8px 30px rgba(0,0,0,.6);backdrop-filter:blur(6px)}
+  #dialog h3{color:var(--vandy-gold-bright);margin-bottom:6px;font-size:18px;letter-spacing:.4px}
+  #dialog p{font-size:14.5px;line-height:1.55;margin-bottom:10px}
+  #dialog .opts{display:flex;flex-direction:column;gap:7px}
+  #dialog button{background:rgba(207,174,112,.12);border:1px solid var(--ui-border);color:#f0e6d2;
+    border-radius:8px;padding:9px 12px;font-size:14px;cursor:pointer;text-align:left;font-family:inherit;transition:background .15s}
+  #dialog button:hover{background:rgba(207,174,112,.3)}
+  #dialog .close-hint{font-size:11.5px;color:#9a917d;margin-top:9px;text-align:right}
+
+  /* ---------- Title screen ---------- */
+  #title{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:radial-gradient(ellipse at 50% 35%, #22282f 0%, #0b0d10 75%);color:#f0e6d2;text-align:center;padding:20px}
+  #title .anchor{font-size:64px;color:var(--vandy-gold);text-shadow:0 0 30px rgba(207,174,112,.45)}
+  #title h1{font-size:min(44px,8vw);color:var(--vandy-gold-bright);letter-spacing:2px;margin:8px 0 4px}
+  #title h2{font-size:min(19px,4.4vw);font-weight:normal;color:#cfc6ae;font-style:italic;margin-bottom:22px}
+  #title .card{background:rgba(255,255,255,.05);border:1px solid var(--ui-border);border-radius:12px;
+    padding:16px 26px;font-size:14.5px;line-height:1.8;max-width:520px;margin-bottom:26px}
+  #title kbd{background:#2c313a;border:1px solid #555;border-radius:5px;padding:1px 7px;font-family:monospace;color:var(--vandy-gold-bright)}
+  #startBtn{background:linear-gradient(180deg,var(--vandy-gold-bright),var(--vandy-gold));color:#1a1a1a;border:none;
+    border-radius:30px;padding:14px 46px;font-size:19px;font-weight:bold;font-family:inherit;cursor:pointer;
+    letter-spacing:1px;box-shadow:0 4px 20px rgba(207,174,112,.35);transition:transform .12s}
+  #startBtn:hover{transform:scale(1.05)}
+
+  /* ---------- Mobile / touch controls ---------- */
+  #joy{position:fixed;left:calc(22px + env(safe-area-inset-left,0px));bottom:calc(22px + env(safe-area-inset-bottom,0px));
+    width:148px;height:148px;border-radius:50%;
+    background:rgba(255,255,255,.07);border:2px solid rgba(207,174,112,.35);z-index:8;display:none;touch-action:none}
+  #joyKnob{position:absolute;left:50%;top:50%;width:62px;height:62px;border-radius:50%;
+    background:rgba(207,174,112,.45);border:1px solid rgba(232,200,126,.55);transform:translate(-50%,-50%)}
+  .tbtn{position:fixed;border-radius:50%;z-index:8;display:none;font-family:inherit;touch-action:none;
+    color:#fff;-webkit-user-select:none;user-select:none}
+  #actBtn{right:calc(26px + env(safe-area-inset-right,0px));bottom:calc(38px + env(safe-area-inset-bottom,0px));
+    width:88px;height:88px;background:rgba(207,174,112,.35);border:2px solid var(--vandy-gold);font-size:32px}
+  #sprintBtn{right:calc(128px + env(safe-area-inset-right,0px));bottom:calc(20px + env(safe-area-inset-bottom,0px));
+    width:64px;height:64px;background:rgba(120,170,255,.22);border:2px solid rgba(150,190,255,.6);font-size:24px}
+  #sprintBtn.on{background:rgba(120,170,255,.5)}
+  #mapBtn{right:calc(26px + env(safe-area-inset-right,0px));top:calc(58px + env(safe-area-inset-top,0px));
+    width:48px;height:48px;background:rgba(207,174,112,.2);border:2px solid rgba(207,174,112,.5);font-size:20px}
+  /* show touch UI on coarse-pointer devices, or when JS detects touch */
+  @media (pointer:coarse){ #joy,.tbtn{display:block} }
+  body.touch #joy, body.touch .tbtn{display:block}
+  /* touch layout: keep dialogs & prompts clear of thumbs, compact HUD */
+  @media (pointer:coarse), (max-width:760px){
+    #dialog{bottom:auto;top:50%;transform:translate(-50%,-50%);max-height:70dvh;overflow-y:auto}
+    #dialog button{padding:13px 14px;font-size:15px}
+    #prompt{bottom:32%;font-size:16px;padding:10px 22px}
+    #hud{top:calc(8px + env(safe-area-inset-top,0px));left:calc(8px + env(safe-area-inset-left,0px))}
+    .hud-card{font-size:12px;padding:6px 10px}
+    .hud-title{font-size:13px}
+    #objective{max-width:210px;font-size:11.5px}
+    #clock{top:calc(8px + env(safe-area-inset-top,0px));right:calc(8px + env(safe-area-inset-right,0px))}
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div class="hud-card"><span class="hud-title">⚓ ANCHOR DOWN</span></div>
+  <div class="hud-card hud-row">
+    <span class="stat">⚓ <span id="anchorCount">0</span>/10</span>
+    <span class="stat">🎓 <span id="triviaCount">0</span>/8</span>
+    <span class="stat">🐿️ <span id="squirrelCount">0</span></span>
+  </div>
+  <div class="hud-card" id="objective"></div>
+</div>
+<div class="hud-card" id="clock">🕐 <span id="clockTime">8:00 AM</span></div>
+<div id="prompt"></div>
+<div id="toast"></div>
+
+<div id="dialog">
+  <h3 id="dlgTitle"></h3>
+  <p id="dlgBody"></p>
+  <div class="opts" id="dlgOpts"></div>
+  <div class="close-hint" id="dlgHint">press E / Esc to close</div>
+</div>
+
+<div id="title">
+  <div class="anchor">⚓</div>
+  <h1>ANCHOR DOWN</h1>
+  <h2>A Vanderbilt Campus Adventure</h2>
+  <div class="card">
+    Welcome to West End Avenue, first-year! Explore a living slice of Vanderbilt's campus —
+    from Kirkland Hall to the Stadium.<br><br>
+    <b style="color:var(--vandy-gold-bright)">Your mission:</b> find all <b>10 hidden anchors</b>,
+    ace the <b>trivia</b> at 8 campus landmarks, and befriend the legendary Vandy squirrels.<br><br>
+    <span id="kbdHelp"><kbd>W A S D</kbd> / arrows — move &nbsp;•&nbsp; <kbd>Shift</kbd> — sprint<br>
+    <kbd>E</kbd> — interact &nbsp;•&nbsp; <kbd>M</kbd> — minimap</span><span id="touchHelp" style="display:none">
+    🕹️ left stick — move &nbsp;•&nbsp; ⚡ hold — sprint<br>
+    ⚓ button — interact &nbsp;•&nbsp; 🗺️ — minimap</span>
+  </div>
+  <button id="startBtn">ANCHOR DOWN ⚓</button>
+</div>
+
+<div id="joy"><div id="joyKnob"></div></div>
+<button id="actBtn" class="tbtn">⚓</button>
+<button id="sprintBtn" class="tbtn">⚡</button>
+<button id="mapBtn" class="tbtn">🗺️</button>
+
+<script>
+'use strict';
+/* =========================================================
+   ANCHOR DOWN — a Vanderbilt campus exploration game
+   Single-file HTML5 canvas simulation. No dependencies.
+   ========================================================= */
+
+// ---------- Canvas ----------
+const cv = document.getElementById('game');
+const cx = cv.getContext('2d');
+const lightCv = document.createElement('canvas');
+const lcx = lightCv.getContext('2d');
+function resize(){ cv.width=innerWidth; cv.height=innerHeight; lightCv.width=innerWidth; lightCv.height=innerHeight; }
+addEventListener('resize', resize); resize();
+
+// ---------- World ----------
+const WORLD = { w: 3600, h: 2700 };
+const GRASS = '#4b7a3f', GRASS2 = '#517f45', PATH = '#d8cbae', ROAD = '#3d4148';
+
+// Seeded rng for stable decoration layout
+let seed = 20260705;
+function rnd(){ seed = (seed*1664525 + 1013904223) >>> 0; return seed/4294967296; }
+
+// ---------- Buildings ----------
+// kind: box | tower | dome | gym | stadium ; door: side offset for entrance dot
+const buildings = [
+  { id:'kirkland', name:'Kirkland Hall', x:1620, y:430, w:320, h:230, kind:'tower', c:'#b09a72', roof:'#6e5b3e',
+    desc:'Vanderbilt\'s oldest building (1875) and home of the administration. Its Italianate clock tower is the symbol of the university — rebuilt after the great fire of 1905.',
+    trivia:{ q:'Kirkland Hall\'s famous tower holds what?', opts:['A telescope','A clock and bell','The chancellor\'s office','A carillon of 61 bells'], a:1 } },
+  { id:'library', name:'Central Library', x:1580, y:1290, w:400, h:250, kind:'box', c:'#c9b892', roof:'#7a6a4c',
+    desc:'The Jean & Alexander Heard Central Library anchors the academic core. Its 8th-floor reading room has one of the best views on campus.',
+    trivia:{ q:'The library\'s famous 4th floor is known for…', opts:['Absolute silence','A 24/7 coffee bar','Group study chaos','A rare books vault'], a:0 } },
+  { id:'rand', name:'Rand Hall', x:1120, y:880, w:300, h:210, kind:'box', c:'#b5a17b', roof:'#6e5e42',
+    desc:'Rand Hall — the beating heart of campus dining. Randwich lines at noon are a campus rite of passage.',
+    trivia:{ q:'Rand is best known on campus for…', opts:['Chemistry labs','Dining & the Randwich','The bookstore','Admissions tours'], a:1 } },
+  { id:'sarratt', name:'Sarratt Student Center', x:1120, y:1170, w:300, h:200, kind:'box', c:'#a8977a', roof:'#65563d',
+    desc:'Sarratt Student Center — cinema, art studios, and the student life hub, connected to Rand.',
+    trivia:{ q:'Sarratt houses a beloved student-run…', opts:['Radio tower','Cinema','Rock wall','Aquarium'], a:1 } },
+  { id:'stevenson', name:'Stevenson Center', x:2280, y:880, w:360, h:250, kind:'box', c:'#9aa0a8', roof:'#5b6067',
+    desc:'The Stevenson Center complex — mathematics and the natural sciences. A maze of connected buildings numbered like a puzzle.',
+    trivia:{ q:'Stevenson Center is the home of…', opts:['Law School','Science & Math','The Wond\'ry','Athletics'], a:1 } },
+  { id:'feath', name:'Featheringill Hall', x:2330, y:1330, w:330, h:230, kind:'box', c:'#b2765a', roof:'#6d4536',
+    desc:'Featheringill Hall — the School of Engineering\'s flagship, with its grand atrium and robotics labs.',
+    trivia:{ q:'Featheringill Hall belongs to which school?', opts:['Blair School of Music','Peabody College','School of Engineering','Owen Business School'], a:2 } },
+  { id:'branscomb', name:'Branscomb Quad', x:880, y:1720, w:400, h:270, kind:'box', c:'#a3906e', roof:'#615437',
+    desc:'Branscomb Quadrangle — historic residence halls arranged around a lively courtyard, steps from Alumni Lawn.',
+    trivia:{ q:'Branscomb Quad is primarily…', opts:['Residence halls','Lecture halls','A dining commons','A parking hub'], a:0 } },
+  { id:'memorial', name:'Memorial Gymnasium', x:660, y:380, w:400, h:270, kind:'gym', c:'#c7bda6', roof:'#8d8264',
+    desc:'Memorial Gym (1952) — one of college basketball\'s quirkiest venues: the team benches sit at the BASELINES, not the sidelines. Opposing teams hate it here.',
+    trivia:{ q:'What makes Memorial Gym famously weird?', opts:['A dirt floor','Benches on the baselines','No scoreboard','An indoor moat'], a:1 } },
+  { id:'ebi', name:'E. Bronson Ingram College', x:2080, y:1800, w:330, h:230, kind:'box', c:'#8f7d5e', roof:'#57492f',
+    desc:'E. Bronson Ingram College — Collegiate Gothic residential college with its own dining hall and towering study spaces.', trivia:null },
+  { id:'zeppos', name:'Zeppos College', x:2520, y:1800, w:300, h:230, kind:'box', c:'#97846a', roof:'#5c4f3a',
+    desc:'Nicholas S. Zeppos College — a residential college named for Vanderbilt\'s beloved 8th chancellor.', trivia:null },
+  { id:'wyatt', name:'Wyatt Center (Peabody)', x:2950, y:1180, w:340, h:250, kind:'dome', c:'#c85f4a', roof:'#8a3f31',
+    desc:'The Wyatt Center\'s copper dome crowns the Peabody College lawn — one of the most photographed spots at Vanderbilt.', trivia:null },
+  { id:'stadium', name:'FirstBank Stadium', x:140, y:820, w:460, h:720, kind:'stadium', c:'#87898f', roof:'#4e5157',
+    desc:'FirstBank Stadium — home of Commodore football since 1922. The oldest stadium in the SEC, ringing with "Anchor Down!" on fall Saturdays.',
+    trivia:{ q:'Vanderbilt\'s athletic battle cry is…', opts:['Sail On!','Anchor Down!','Gold Rush!','Fear the Fleet!'], a:1 } },
+];
+
+// ---------- Points of interest ----------
+const pois = [
+  { id:'cornelius', name:'Cornelius Vanderbilt Statue', x:1890, y:740, r:26, icon:'statue',
+    desc:'"The Commodore" himself — Cornelius Vanderbilt, whose $1 million gift founded the university in 1873. Students rub his pedestal for exam luck.' },
+  { id:'oak', name:'Bicentennial Oak', x:980, y:770, r:34, icon:'bigtree',
+    desc:'The Bicentennial Oak — older than the nation itself. Certified to predate 1776, it has shaded every generation of Commodores. The whole campus is a national arboretum.' },
+  { id:'coffee', name:'Campus Coffee Cart', x:1480, y:1130, r:24, icon:'coffee',
+    desc:'A double-shot latte from the cart by Rand. You feel FAST. (+ sprint boost for 20 seconds!)' },
+  { id:'lawnsign', name:'Alumni Lawn', x:1790, y:1050, r:30, icon:'sign',
+    desc:'Alumni Lawn — frisbee, hammocks, Rites of Spring concerts, and the best people-watching at Vanderbilt.' },
+];
+
+// ---------- Hidden anchors (the scavenger hunt) ----------
+const anchors = [
+  {x:1795,y:565},{x:760,y:1220},{x:370,y:1160},{x:2450,y:1140},{x:3110,y:1490},
+  {x:1060,y:1960},{x:2650,y:2080},{x:1770,y:1470},{x:870,y:520},{x:3150,y:700},
+].map((p,i)=>({...p,id:i,found:false}));
+
+// ---------- Roads & paths ----------
+const roads = [
+  {x:0,y:120,w:WORLD.w,h:130,label:'WEST END AVE'},           // horizontal top
+  {x:3380,y:120,w:140,h:WORLD.h-120,label:'21ST AVE S'},      // vertical right
+];
+const paths = [ // walkway segments [x1,y1,x2,y2,width]
+  [1780,250,1780,430,46],[1780,660,1780,1290,52],[1780,1540,1780,2100,46],
+  [1420,990,1620,990,38],[1420,1270,1580,1400,38],[1940,545,2280,1000,40],
+  [1980,1400,2330,1445,40],[1280,1990,1780,1900,42],[1780,1900,2240,1915,42],
+  [600,1180,1120,985,40],[860,650,980,880,36],[1060,650,1780,560,38],
+  [1980,1415,2950,1300,42],[2240,2030,2240,1915,34],[2660,1930,2660,2100,0],
+  [1780,2100,2670,2090,40],[3120,1430,3120,1300,36],[900,1450,1120,1270,36],
+  [900,1450,880,1720,36],[600,1180,470,1180,34],
+];
+
+// ---------- Decorations (trees, lamps, benches) ----------
+const trees=[], lamps=[], benches=[];
+function rectHit(x,y,pad,r){ return x>r.x-pad && x<r.x+r.w+pad && y>r.y-pad && y<r.y+r.h+pad; }
+function clearSpot(x,y,pad){
+  for(const b of buildings) if(rectHit(x,y,pad,b)) return false;
+  for(const r of roads) if(rectHit(x,y,pad,r)) return false;
+  for(const p of pois) if(Math.hypot(x-p.x,y-p.y)<70) return false;
+  // keep alumni lawn mostly open
+  if(x>1500&&x<2100&&y>780&&y<1260) return false;
+  return true;
+}
+for(let i=0;i<170;i++){
+  const x=60+rnd()*(WORLD.w-460), y=300+rnd()*(WORLD.h-380);
+  if(clearSpot(x,y,55)) trees.push({x,y,s:.75+rnd()*.7,v:rnd()});
+}
+for(const p of paths){ // lamps along walkways
+  const n=Math.max(1,Math.floor(Math.hypot(p[2]-p[0],p[3]-p[1])/300));
+  for(let i=0;i<=n;i++){
+    const t=i/n, x=p[0]+(p[2]-p[0])*t+28, y=p[1]+(p[3]-p[1])*t+28;
+    if(clearSpot(x,y,20)&&rnd()<.6) lamps.push({x,y});
+  }
+}
+[[1560,830],[2040,830],[1560,1230],[2040,1230],[1700,2150],[2350,2150],[700,950],[2750,1250]]
+  .forEach(([x,y])=>benches.push({x,y}));
+
+// ---------- NPCs ----------
+const NPC_QUOTES = [
+  'Anchor Down! ⚓','Go \'Dores!','Rand cookie day. Best day.','I have a CS midterm in Featheringill…',
+  'The squirrels here fear NOTHING.','Rites of Spring was unreal last year.','Study room 4? It\'s a library law: silence.',
+  'Cross 21st and you\'re basically at Peabody.','I hammock on Alumni Lawn every Friday.','Baseline benches. Memorial Magic!',
+  'The Commodore statue is watching you.','This whole campus is an arboretum, you know.',
+];
+const npcs=[];
+const NPC_COLORS=['#8c6ff0','#e0704f','#4fa3e0','#58b06b','#d8a13b','#c95f8a','#7a7f88','#caa64f'];
+const NPC_SPOTS=[[1780,900],[1650,1150],[1300,1000],[2100,1200],[1780,1750],[2450,1250],[1150,1550],[2300,2100],[950,1200],[1600,600],[2800,1350],[1400,1850]];
+for(let i=0;i<NPC_SPOTS.length;i++){
+  const [hx,hy]=NPC_SPOTS[i];
+  npcs.push({x:hx,y:hy,hx,hy,tx:hx,ty:hy,wait:rnd()*3,shirt:NPC_COLORS[i%NPC_COLORS.length],
+    skin:['#e8c39e','#c68863','#8d5524','#f1d3b3'][i%4], quote:NPC_QUOTES[i%NPC_QUOTES.length], step:rnd()*10});
+}
+
+// ---------- Squirrels ----------
+const squirrels=[];
+for(let i=0;i<14;i++){
+  let x,y,ok=false;
+  while(!ok){ x=200+rnd()*(WORLD.w-600); y=350+rnd()*(WORLD.h-500); ok=clearSpot(x,y,30); }
+  squirrels.push({x,y,tx:x,ty:y,state:'idle',t:rnd()*2,befriended:false,flip:1});
+}
+
+// ---------- Player & state ----------
+const player={x:1780,y:330,r:14,speed:230,dir:0,step:0,moving:false,boost:0};
+const cam={x:0,y:0};
+const state={
+  started:false, timeOfDay:8/24, anchorsFound:0, triviaDone:{}, triviaCorrect:0,
+  squirrelsBefriended:0, dialogOpen:false, minimap:true, complete:false, fireworks:[], particles:[],
+};
+// restore progress
+try{
+  const s=JSON.parse(localStorage.getItem('anchorDownSave')||'null');
+  if(s){ s.anchors.forEach(i=>anchors[i].found=true); state.anchorsFound=s.anchors.length;
+    state.triviaDone=s.trivia||{}; state.triviaCorrect=Object.values(state.triviaDone).filter(v=>v).length;
+    state.squirrelsBefriended=s.squirrels||0; }
+}catch(e){}
+function save(){
+  try{ localStorage.setItem('anchorDownSave',JSON.stringify({
+    anchors:anchors.filter(a=>a.found).map(a=>a.id), trivia:state.triviaDone, squirrels:state.squirrelsBefriended }));
+  }catch(e){}
+}
+
+// ---------- Audio ----------
+let AC=null;
+function beep(freq,dur=0.09,type='sine',vol=0.15){
+  if(!AC) return;
+  const o=AC.createOscillator(),g=AC.createGain();
+  o.type=type;o.frequency.value=freq;g.gain.value=vol;
+  g.gain.exponentialRampToValueAtTime(0.001,AC.currentTime+dur);
+  o.connect(g).connect(AC.destination);o.start();o.stop(AC.currentTime+dur);
+}
+function chime(){ beep(660,.1);setTimeout(()=>beep(880,.12),90);setTimeout(()=>beep(1320,.2),190); }
+function buzz(){ beep(180,.2,'square',.1); }
+
+// ---------- Input ----------
+const keys={};
+addEventListener('keydown',e=>{
+  keys[e.key.toLowerCase()]=true;
+  if(e.key==='Escape') closeDialog();
+  if(e.key.toLowerCase()==='m'&&!state.dialogOpen){state.minimap=!state.minimap;}
+  if(e.key.toLowerCase()==='e'){ if(state.dialogOpen){ if(!dlgLocked) closeDialog(); } else tryInteract(); }
+  if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(e.key.toLowerCase())) e.preventDefault();
+});
+addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+
+// ---------- Touch controls ----------
+const isTouch=matchMedia('(pointer:coarse)').matches||('ontouchstart' in window)||navigator.maxTouchPoints>0;
+if(isTouch){
+  document.body.classList.add('touch');
+  document.getElementById('kbdHelp').style.display='none';
+  document.getElementById('touchHelp').style.display='inline';
+  document.getElementById('dlgHint').textContent='tap ⚓ or outside the card to close';
+}
+let touchSprint=false;
+
+// virtual joystick (multi-touch safe: tracks its own touch by identifier)
+const joy=document.getElementById('joy'),knob=document.getElementById('joyKnob');
+let joyVec={x:0,y:0},joyId=null;
+function joyMove(t){
+  const r=joy.getBoundingClientRect(),cxr=r.left+r.width/2,cyr=r.top+r.height/2;
+  let dx=t.clientX-cxr,dy=t.clientY-cyr;const d=Math.hypot(dx,dy),m=r.width/2;
+  if(d>m){dx=dx/d*m;dy=dy/d*m;}
+  knob.style.transform=`translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+  joyVec={x:dx/m,y:dy/m};
+}
+function joyReset(){joyId=null;joyVec={x:0,y:0};knob.style.transform='translate(-50%,-50%)';}
+joy.addEventListener('touchstart',e=>{joyId=e.changedTouches[0].identifier;joyMove(e.changedTouches[0]);e.preventDefault();});
+joy.addEventListener('touchmove',e=>{for(const t of e.changedTouches)if(t.identifier===joyId)joyMove(t);e.preventDefault();});
+joy.addEventListener('touchend',e=>{for(const t of e.changedTouches)if(t.identifier===joyId)joyReset();e.preventDefault();});
+joy.addEventListener('touchcancel',joyReset);
+
+// ⚓ action button — interact / close dialog
+document.getElementById('actBtn').addEventListener('touchstart',e=>{e.preventDefault();
+  if(state.dialogOpen){if(!dlgLocked)closeDialog();}else tryInteract();});
+
+// ⚡ sprint button — hold to sprint (squirrels will still flee!)
+const sprintBtn=document.getElementById('sprintBtn');
+sprintBtn.addEventListener('touchstart',e=>{e.preventDefault();touchSprint=true;sprintBtn.classList.add('on');});
+const sprintOff=e=>{if(e)e.preventDefault();touchSprint=false;sprintBtn.classList.remove('on');};
+sprintBtn.addEventListener('touchend',sprintOff);
+sprintBtn.addEventListener('touchcancel',sprintOff);
+
+// 🗺️ minimap toggle
+document.getElementById('mapBtn').addEventListener('touchstart',e=>{e.preventDefault();
+  if(!state.dialogOpen)state.minimap=!state.minimap;});
+
+// tap anywhere on the world to dismiss an open (unlocked) dialog
+cv.addEventListener('touchstart',e=>{
+  if(state.dialogOpen&&!dlgLocked){closeDialog();e.preventDefault();}
+});
+
+// block pinch-zoom / double-tap zoom gestures (iOS Safari)
+document.addEventListener('gesturestart',e=>e.preventDefault());
+document.addEventListener('dblclick',e=>e.preventDefault());
+function sprintHeld(){ return keys['shift']||touchSprint; }
+
+// ---------- Dialog UI ----------
+const dlg=document.getElementById('dialog'),dlgTitle=document.getElementById('dlgTitle'),
+      dlgBody=document.getElementById('dlgBody'),dlgOpts=document.getElementById('dlgOpts'),
+      dlgHint=document.getElementById('dlgHint');
+let dlgLocked=false;
+function openDialog(title,body,opts=null,locked=false){
+  state.dialogOpen=true;dlgLocked=locked;
+  dlgTitle.textContent=title;dlgBody.innerHTML=body;dlgOpts.innerHTML='';
+  dlgHint.style.display=locked?'none':'block';
+  if(opts) for(const o of opts){
+    const b=document.createElement('button');b.textContent=o.label;
+    b.onclick=()=>o.fn();dlgOpts.appendChild(b);
+  }
+  dlg.style.display='block';
+}
+function closeDialog(){ state.dialogOpen=false;dlg.style.display='none'; }
+function toast(msg,ms=2600){
+  const t=document.getElementById('toast');t.innerHTML=msg;t.style.display='block';
+  clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',ms);
+}
+
+// ---------- Interaction ----------
+let nearTarget=null;
+function findNear(){
+  // anchors
+  for(const a of anchors) if(!a.found && Math.hypot(player.x-a.x,player.y-a.y)<60)
+    return {type:'anchor',obj:a,label:'pick up the anchor'};
+  // pois
+  for(const p of pois) if(Math.hypot(player.x-p.x,player.y-p.y)<p.r+55)
+    return {type:'poi',obj:p,label:p.name};
+  // squirrels
+  for(const s of squirrels) if(!s.befriended && Math.hypot(player.x-s.x,player.y-s.y)<52)
+    return {type:'squirrel',obj:s,label:'befriend the squirrel'};
+  // buildings (near any edge)
+  for(const b of buildings){
+    const nx=Math.max(b.x,Math.min(player.x,b.x+b.w)),ny=Math.max(b.y,Math.min(player.y,b.y+b.h));
+    if(Math.hypot(player.x-nx,player.y-ny)<58) return {type:'building',obj:b,label:b.name};
+  }
+  // npcs
+  for(const n of npcs) if(Math.hypot(player.x-n.x,player.y-n.y)<55)
+    return {type:'npc',obj:n,label:'talk'};
+  return null;
+}
+function tryInteract(){
+  if(!state.started||state.dialogOpen||!nearTarget) return;
+  const {type,obj}=nearTarget;
+  if(type==='anchor'){
+    obj.found=true;state.anchorsFound++;chime();save();
+    burst(obj.x,obj.y,'#E8C87E',26);
+    toast(`⚓ Anchor found! <b>${state.anchorsFound}/10</b>`);
+    checkComplete();updateHUD();
+  }
+  else if(type==='squirrel'){
+    obj.befriended=true;state.squirrelsBefriended++;chime();save();
+    burst(obj.x,obj.y-10,'#ff8fb3',14);
+    toast('🐿️ You befriended a Vandy squirrel! It accepts your granola offering.');
+    obj.state='flee';obj.t=0;updateHUD();
+  }
+  else if(type==='poi'){
+    beep(520,.08);
+    if(obj.id==='coffee'){ player.boost=20;toast('☕ Espresso legs! Sprint boosted for 20s'); }
+    openDialog(obj.name,obj.desc);
+  }
+  else if(type==='npc'){ beep(440,.07);openDialog('Student','"'+obj.quote+'"'); }
+  else if(type==='building') openBuilding(obj);
+}
+function openBuilding(b){
+  beep(520,.08);
+  const opts=[];
+  if(b.trivia && !(b.id in state.triviaDone))
+    opts.push({label:'🎓 Take the trivia challenge',fn:()=>askTrivia(b)});
+  else if(b.trivia)
+    opts.push({label:state.triviaDone[b.id]?'🎓 Trivia: aced! ✔':'🎓 Trivia: attempted',fn:()=>{}});
+  openDialog(b.name,b.desc,opts);
+}
+function askTrivia(b){
+  const t=b.trivia;
+  openDialog('🎓 '+b.name+' — Trivia', t.q, t.opts.map((o,i)=>({label:String.fromCharCode(65+i)+'. '+o,fn:()=>{
+    state.triviaDone[b.id]=(i===t.a);save();
+    if(i===t.a){ state.triviaCorrect++;chime();burst(player.x,player.y-30,'#8fd18f',18);
+      openDialog('✔ Correct!','Nicely done, Commodore. <b>'+t.opts[t.a]+'</b> is right.'); }
+    else{ buzz();openDialog('✘ Not quite…','The answer was: <b>'+t.opts[t.a]+'</b>. You can\'t retry — choose wisely elsewhere!'); }
+    checkComplete();updateHUD();
+  }})),true);
+}
+function checkComplete(){
+  if(state.complete) return;
+  const triviaAll=buildings.filter(b=>b.trivia).every(b=>b.id in state.triviaDone);
+  if(state.anchorsFound>=10 && triviaAll){
+    state.complete=true;
+    setTimeout(()=>{
+      openDialog('⚓ TRUE COMMODORE ⚓',
+        `You found every anchor and faced every challenge — <b>${state.triviaCorrect}/8</b> trivia aced, `+
+        `<b>${state.squirrelsBefriended}</b> squirrels befriended.<br><br>`+
+        `The Kirkland tower bells ring for you. <i>Anchor Down, forever.</i> 🎆`);
+      launchFireworks();
+    },600);
+  }
+}
+
+// ---------- Particles / fireworks ----------
+function burst(x,y,color,n){
+  for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,s=40+Math.random()*140;
+    state.particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-40,life:.9+Math.random()*.5,c:color,r:2+Math.random()*2.5});}
+}
+function launchFireworks(){
+  let count=0;
+  const iv=setInterval(()=>{
+    const x=1500+Math.random()*600,y=200+Math.random()*350;
+    burst(x,y,['#E8C87E','#ffffff','#CFAE70','#ffd700'][count%4],44);
+    chime();
+    if(++count>=10)clearInterval(iv);
+  },500);
+}
+
+// ---------- Collision ----------
+const solids=buildings.map(b=>({x:b.x,y:b.y,w:b.w,h:b.h}));
+function collides(x,y){
+  if(x<player.r||y<player.r||x>WORLD.w-player.r||y>WORLD.h-player.r)return true;
+  for(const s of solids)
+    if(x>s.x-player.r&&x<s.x+s.w+player.r&&y>s.y-player.r&&y<s.y+s.h+player.r)return true;
+  return false;
+}
+
+// ---------- Update ----------
+let last=0;
+function update(dt){
+  // day cycle: full day in 4 minutes
+  state.timeOfDay=(state.timeOfDay+dt/240)%1;
+  if(player.boost>0)player.boost-=dt;
+
+  if(!state.dialogOpen){
+    let dx=(keys['d']||keys['arrowright']?1:0)-(keys['a']||keys['arrowleft']?1:0)+joyVec.x;
+    let dy=(keys['s']||keys['arrowdown']?1:0)-(keys['w']||keys['arrowup']?1:0)+joyVec.y;
+    const m=Math.hypot(dx,dy);
+    player.moving=m>0.15;
+    if(player.moving){
+      dx/=Math.max(1,m);dy/=Math.max(1,m);
+      const sprint=(sprintHeld()?1.55:1)*(player.boost>0?1.35:1);
+      const sp=player.speed*sprint*dt;
+      if(!collides(player.x+dx*sp,player.y))player.x+=dx*sp;
+      if(!collides(player.x,player.y+dy*sp))player.y+=dy*sp;
+      player.dir=Math.atan2(dy,dx);
+      player.step+=dt*10*sprint;
+    }
+  }
+
+  // camera
+  cam.x+= (Math.max(0,Math.min(player.x-cv.width/2,WORLD.w-cv.width))-cam.x)*Math.min(1,dt*5);
+  cam.y+= (Math.max(0,Math.min(player.y-cv.height/2,WORLD.h-cv.height))-cam.y)*Math.min(1,dt*5);
+
+  // npcs wander
+  for(const n of npcs){
+    const d=Math.hypot(n.tx-n.x,n.ty-n.y);
+    if(d<6){ if((n.wait-=dt)<=0){ n.wait=1.5+Math.random()*4;
+        const a=Math.random()*Math.PI*2,r=60+Math.random()*160;
+        let tx=n.hx+Math.cos(a)*r,ty=n.hy+Math.sin(a)*r;
+        if(clearSpot(tx,ty,player.r+6)){n.tx=tx;n.ty=ty;} } }
+    else{ n.x+=(n.tx-n.x)/d*70*dt;n.y+=(n.ty-n.y)/d*70*dt;n.step+=dt*8; }
+  }
+
+  // squirrels
+  for(const s of squirrels){
+    const pd=Math.hypot(player.x-s.x,player.y-s.y);
+    const sprinting=sprintHeld()&&player.moving;
+    if(s.state!=='flee' && pd<(sprinting?150:70) && !s.befriended && pd>40){ s.state='flee';s.t=0; }
+    if(s.state==='flee'){
+      const a=Math.atan2(s.y-player.y,s.x-player.x);
+      let nx2=s.x+Math.cos(a)*260*dt,ny2=s.y+Math.sin(a)*260*dt;
+      nx2=Math.max(40,Math.min(WORLD.w-40,nx2));ny2=Math.max(280,Math.min(WORLD.h-40,ny2));
+      if(clearSpot(nx2,ny2,10)){s.x=nx2;s.y=ny2;}
+      s.flip=Math.cos(a)>0?1:-1;
+      if((s.t+=dt)>1.6){s.state='idle';s.t=0;s.tx=s.x;s.ty=s.y;}
+    } else {
+      const d=Math.hypot(s.tx-s.x,s.ty-s.y);
+      if(d<4){ if((s.t-=dt)<=0){ s.t=1+Math.random()*3;
+          const nx2=s.x+(Math.random()-0.5)*160,ny2=s.y+(Math.random()-0.5)*160;
+          if(clearSpot(nx2,ny2,10)&&nx2>40&&ny2>280&&nx2<WORLD.w-40&&ny2<WORLD.h-40){s.tx=nx2;s.ty=ny2;} } }
+      else{ s.x+=(s.tx-s.x)/d*130*dt;s.y+=(s.ty-s.y)/d*130*dt;s.flip=(s.tx-s.x)>0?1:-1; }
+    }
+  }
+
+  // particles
+  for(let i=state.particles.length-1;i>=0;i--){
+    const p=state.particles[i];
+    p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=110*dt;p.life-=dt;
+    if(p.life<=0)state.particles.splice(i,1);
+  }
+
+  // interact prompt
+  nearTarget=state.dialogOpen?null:findNear();
+  const pr=document.getElementById('prompt');
+  if(nearTarget&&state.started){pr.innerHTML=(isTouch?`tap <b>⚓</b> — ${nearTarget.label}`:`<b>E</b> — ${nearTarget.label}`);pr.style.display='block';}
+  else pr.style.display='none';
+
+  // clock hud
+  const hrs=state.timeOfDay*24,h12=Math.floor(hrs)%12||12,mm=String(Math.floor(hrs%1*60)).padStart(2,'0');
+  document.getElementById('clockTime').textContent=`${h12}:${mm} ${hrs<12?'AM':'PM'}`;
+}
+
+function updateHUD(){
+  document.getElementById('anchorCount').textContent=state.anchorsFound;
+  document.getElementById('triviaCount').textContent=Object.keys(state.triviaDone).length;
+  document.getElementById('squirrelCount').textContent=state.squirrelsBefriended;
+  const triviaAll=buildings.filter(b=>b.trivia).every(b=>b.id in state.triviaDone);
+  const items=[
+    [state.anchorsFound>=10,`Find the 10 hidden anchors (${state.anchorsFound}/10)`],
+    [triviaAll,`Face trivia at 8 landmarks (${Object.keys(state.triviaDone).length}/8)`],
+    [state.squirrelsBefriended>=3,`Befriend 3 squirrels — walk, don't sprint! (${Math.min(3,state.squirrelsBefriended)}/3)`],
+  ];
+  document.getElementById('objective').innerHTML='<b style="color:#E8C87E">Objectives</b><br>'+
+    items.map(([d,t])=>`<span class="${d?'done':''}">${d?'✔':'•'} ${t}</span>`).join('<br>');
+}
+
+// ---------- Drawing helpers ----------
+function drawTree(t){
+  const {x,y,s}=t;
+  cx.fillStyle='rgba(0,0,0,.18)';cx.beginPath();cx.ellipse(x,y+4,26*s,9*s,0,0,7);cx.fill();
+  cx.fillStyle='#6b4a2e';cx.fillRect(x-4*s,y-26*s,8*s,28*s);
+  const g=['#3e6b34','#47793b','#548a46'][Math.floor(t.v*3)];
+  cx.fillStyle=g;
+  cx.beginPath();cx.arc(x,y-44*s,24*s,0,7);cx.arc(x-15*s,y-30*s,17*s,0,7);cx.arc(x+15*s,y-30*s,17*s,0,7);cx.fill();
+  cx.fillStyle='rgba(255,255,255,.09)';cx.beginPath();cx.arc(x-7*s,y-50*s,10*s,0,7);cx.fill();
+}
+function drawLamp(l,night){
+  cx.fillStyle='rgba(0,0,0,.15)';cx.beginPath();cx.ellipse(l.x,l.y+2,7,3,0,0,7);cx.fill();
+  cx.fillStyle='#2b2e33';cx.fillRect(l.x-2,l.y-40,4,40);
+  cx.fillStyle=night?'#ffe9a8':'#c9cdd4';
+  cx.beginPath();cx.arc(l.x,l.y-44,6,0,7);cx.fill();
+  if(night){cx.fillStyle='rgba(255,233,168,.14)';cx.beginPath();cx.arc(l.x,l.y-44,26,0,7);cx.fill();}
+}
+function drawBench(b){
+  cx.fillStyle='rgba(0,0,0,.15)';cx.fillRect(b.x-20,b.y+4,40,5);
+  cx.fillStyle='#7a5c3a';cx.fillRect(b.x-20,b.y-6,40,8);
+  cx.fillStyle='#68492c';cx.fillRect(b.x-18,b.y+2,5,8);cx.fillRect(b.x+13,b.y+2,5,8);
+}
+function drawBuilding(b){
+  const {x,y,w,h}=b;
+  cx.fillStyle='rgba(0,0,0,.22)';cx.fillRect(x+8,y+10,w,h); // shadow
+  if(b.kind==='stadium'){
+    cx.fillStyle=b.c;cx.beginPath();cx.ellipse(x+w/2,y+h/2,w/2,h/2,0,0,7);cx.fill();
+    cx.strokeStyle=b.roof;cx.lineWidth=26;cx.stroke();
+    cx.fillStyle='#3f8a3c';cx.beginPath();cx.ellipse(x+w/2,y+h/2,w/2-58,h/2-58,0,0,7);cx.fill();
+    // gridiron
+    cx.strokeStyle='rgba(255,255,255,.55)';cx.lineWidth=2;
+    for(let i=-3;i<=3;i++){cx.beginPath();cx.moveTo(x+w/2-90,y+h/2+i*44);cx.lineTo(x+w/2+90,y+h/2+i*44);cx.stroke();}
+    cx.strokeRect(x+w/2-90,y+h/2-3*44,180,6*44);
+    cx.fillStyle='#E8C87E';cx.font='bold 30px Georgia';cx.textAlign='center';
+    cx.fillText('⚓',x+w/2,y+h/2+10);
+  } else {
+    cx.fillStyle=b.c;cx.fillRect(x,y,w,h);
+    cx.fillStyle=b.roof;cx.fillRect(x,y,w,26); // roof band
+    cx.fillStyle='rgba(0,0,0,.1)';cx.fillRect(x,y+h-12,w,12);
+    // windows
+    cx.fillStyle='rgba(40,48,66,.85)';
+    const cols=Math.floor(w/52),rows=Math.floor((h-50)/48);
+    for(let i=0;i<cols;i++)for(let j=0;j<rows;j++){
+      const wx=x+18+(cols>1?i*(w-56)/(cols-1):(w-20)/2), wy=y+40+(rows>1?j*(h-84)/(rows-1):(h-60)/2);
+      const lit=isNight()&&((i*7+j*13+Math.floor(b.x))%3===0);
+      cx.fillStyle=lit?'#ffe9a8':'rgba(40,48,66,.85)';
+      cx.fillRect(wx,wy,20,26);
+      cx.fillStyle='rgba(255,255,255,.25)';cx.fillRect(wx,wy,20,4);
+    }
+    // door
+    cx.fillStyle='#4a3521';cx.fillRect(x+w/2-16,y+h-34,32,34);
+    cx.fillStyle='#E8C87E';cx.beginPath();cx.arc(x+w/2+9,y+h-17,2.5,0,7);cx.fill();
+    if(b.kind==='tower'){ // Kirkland clock tower
+      const tx=x+w/2;
+      cx.fillStyle='rgba(0,0,0,.2)';cx.fillRect(tx-30+6,y-150+8,60,150);
+      cx.fillStyle='#a8916a';cx.fillRect(tx-30,y-150,60,150);
+      cx.fillStyle='#6e5b3e';cx.beginPath();cx.moveTo(tx-38,y-150);cx.lineTo(tx,y-208);cx.lineTo(tx+38,y-150);cx.fill();
+      cx.fillStyle='#f5efdf';cx.beginPath();cx.arc(tx,y-110,17,0,7);cx.fill();
+      cx.strokeStyle='#333';cx.lineWidth=2;
+      const ang=state.timeOfDay*24*Math.PI/6 - Math.PI/2;
+      cx.beginPath();cx.moveTo(tx,y-110);cx.lineTo(tx+Math.cos(ang)*11,y-110+Math.sin(ang)*11);cx.stroke();
+      cx.beginPath();cx.moveTo(tx,y-110);cx.lineTo(tx,y-120);cx.stroke();
+      cx.strokeStyle='#6e5b3e';cx.lineWidth=1.5;cx.strokeRect(tx-30,y-150,60,150);
+    }
+    if(b.kind==='dome'){ // Wyatt dome
+      cx.fillStyle='#3f7f74';cx.beginPath();cx.arc(x+w/2,y+4,52,Math.PI,0);cx.fill();
+      cx.fillStyle='#356b62';cx.fillRect(x+w/2-6,y-62,12,18);
+    }
+    if(b.kind==='gym'){ // arched roof hint
+      cx.fillStyle=b.roof;cx.beginPath();cx.moveTo(x,y+26);
+      cx.quadraticCurveTo(x+w/2,y-46,x+w,y+26);cx.fill();
+    }
+  }
+  // nameplate
+  cx.font='bold 15px Georgia';cx.textAlign='center';
+  cx.fillStyle='rgba(0,0,0,.55)';
+  const tw=cx.measureText(b.name).width;
+  cx.fillRect(x+w/2-tw/2-8,y+h+8,tw+16,22);
+  cx.fillStyle='#E8C87E';cx.fillText(b.name,x+w/2,y+h+24);
+  // trivia badge
+  if(b.trivia){
+    cx.font='13px Georgia';
+    cx.fillStyle=b.id in state.triviaDone?(state.triviaDone[b.id]?'#8fd18f':'#c98f8f'):'#E8C87E';
+    cx.fillText(b.id in state.triviaDone?(state.triviaDone[b.id]?'🎓 aced':'🎓 attempted'):'🎓 trivia!',x+w/2,y+h+44);
+  }
+}
+function drawPerson(x,y,dir,step,shirt,skin,moving){
+  cx.save();cx.translate(x,y);
+  cx.fillStyle='rgba(0,0,0,.2)';cx.beginPath();cx.ellipse(0,2,11,4.5,0,0,7);cx.fill();
+  const bob=moving?Math.sin(step*2)*1.5:0;
+  const lo=moving?Math.sin(step)*5:0;
+  cx.strokeStyle='#2c2c34';cx.lineWidth=4.5;cx.lineCap='round';
+  cx.beginPath();cx.moveTo(-4,-10+bob);cx.lineTo(-4+lo*.4,0);cx.stroke();
+  cx.beginPath();cx.moveTo(4,-10+bob);cx.lineTo(4-lo*.4,0);cx.stroke();
+  cx.fillStyle=shirt;
+  cx.beginPath();cx.roundRect(-8,-26+bob,16,18,5);cx.fill();
+  cx.strokeStyle=shirt;cx.lineWidth=4;
+  cx.beginPath();cx.moveTo(-8,-22+bob);cx.lineTo(-11,-12+bob-lo*.3);cx.stroke();
+  cx.beginPath();cx.moveTo(8,-22+bob);cx.lineTo(11,-12+bob+lo*.3);cx.stroke();
+  cx.fillStyle=skin;cx.beginPath();cx.arc(0,-33+bob,7.5,0,7);cx.fill();
+  cx.fillStyle='#3a2c20';cx.beginPath();cx.arc(0,-36+bob,7,Math.PI,0);cx.fill();
+  cx.restore();
+}
+function drawSquirrel(s){
+  cx.save();cx.translate(s.x,s.y);cx.scale(s.flip,1);
+  cx.fillStyle='rgba(0,0,0,.15)';cx.beginPath();cx.ellipse(0,2,10,3.5,0,0,7);cx.fill();
+  const hop=s.state==='flee'?Math.abs(Math.sin(s.t*18))*5:0;
+  cx.fillStyle='#8a5a33';
+  cx.beginPath();cx.ellipse(0,-6-hop,8,6,0,0,7);cx.fill();           // body
+  cx.beginPath();cx.arc(7,-10-hop,4.5,0,7);cx.fill();               // head
+  cx.beginPath();cx.moveTo(-6,-8-hop);                              // tail
+  cx.quadraticCurveTo(-16,-22-hop,-8,-24-hop);
+  cx.quadraticCurveTo(-2,-24-hop,-9,-13-hop);cx.fill();
+  cx.fillStyle='#000';cx.beginPath();cx.arc(8.5,-11-hop,1,0,7);cx.fill();
+  if(s.befriended){cx.fillStyle='#ff6f9c';cx.font='9px sans-serif';cx.fillText('♥',4,-19-hop);}
+  cx.restore();
+}
+function drawPOI(p){
+  const {x,y}=p;
+  if(p.icon==='statue'){
+    cx.fillStyle='rgba(0,0,0,.2)';cx.beginPath();cx.ellipse(x,y+6,24,8,0,0,7);cx.fill();
+    cx.fillStyle='#8f8f96';cx.fillRect(x-18,y-14,36,20);
+    cx.fillStyle='#6f7076';cx.fillRect(x-13,y-30,26,16);
+    cx.fillStyle='#57585e';
+    drawStatueMan(x,y-30);
+    cx.font='bold 12px Georgia';cx.fillStyle='#E8C87E';cx.textAlign='center';
+    cx.fillText('THE COMMODORE',x,y+22);
+  } else if(p.icon==='bigtree'){
+    cx.fillStyle='rgba(0,0,0,.22)';cx.beginPath();cx.ellipse(x,y+6,52,16,0,0,7);cx.fill();
+    cx.fillStyle='#5a3d24';cx.fillRect(x-9,y-52,18,56);
+    cx.fillStyle='#3a6630';
+    cx.beginPath();cx.arc(x,y-84,46,0,7);cx.arc(x-34,y-58,30,0,7);cx.arc(x+34,y-58,30,0,7);cx.fill();
+    cx.fillStyle='rgba(255,255,255,.08)';cx.beginPath();cx.arc(x-14,y-96,18,0,7);cx.fill();
+  } else if(p.icon==='coffee'){
+    cx.fillStyle='rgba(0,0,0,.2)';cx.beginPath();cx.ellipse(x,y+8,26,8,0,0,7);cx.fill();
+    cx.fillStyle='#7c4a2d';cx.fillRect(x-22,y-18,44,26);
+    cx.fillStyle='#E8C87E';cx.fillRect(x-26,y-30,52,12);
+    cx.fillStyle='#1a1a1a';cx.font='bold 10px Georgia';cx.textAlign='center';cx.fillText('COFFEE',x,y-21);
+    cx.fillStyle='#f5efdf';cx.fillRect(x-5,y-12,10,10);
+    cx.strokeStyle='#f5efdf';cx.lineWidth=2;cx.beginPath();cx.arc(x+7,y-7,4,-1.4,1.4);cx.stroke();
+  } else if(p.icon==='sign'){
+    cx.fillStyle='rgba(0,0,0,.18)';cx.beginPath();cx.ellipse(x,y+4,20,6,0,0,7);cx.fill();
+    cx.fillStyle='#4a3521';cx.fillRect(x-3,y-34,6,36);
+    cx.fillStyle='#1a1a1a';cx.fillRect(x-46,y-56,92,26);
+    cx.strokeStyle='#CFAE70';cx.lineWidth=2;cx.strokeRect(x-46,y-56,92,26);
+    cx.fillStyle='#E8C87E';cx.font='bold 11px Georgia';cx.textAlign='center';cx.fillText('ALUMNI LAWN',x,y-39);
+  }
+}
+function drawStatueMan(x,y){
+  cx.fillStyle='#57585e';
+  cx.beginPath();cx.arc(x,y-26,5,0,7);cx.fill();
+  cx.beginPath();cx.roundRect(x-6,y-22,12,16,4);cx.fill();
+}
+function drawAnchor(a,t){
+  const bobY=Math.sin(t*3+a.id)*4;
+  const {x}=a,y=a.y+bobY;
+  cx.fillStyle='rgba(232,200,126,.25)';cx.beginPath();cx.arc(x,y-10,22+Math.sin(t*4)*3,0,7);cx.fill();
+  cx.strokeStyle='#E8C87E';cx.fillStyle='#E8C87E';cx.lineWidth=4;cx.lineCap='round';
+  cx.beginPath();cx.arc(x,y-22,5,0,7);cx.stroke();                    // ring
+  cx.beginPath();cx.moveTo(x,y-17);cx.lineTo(x,y+2);cx.stroke();      // shank
+  cx.beginPath();cx.moveTo(x-9,y-11);cx.lineTo(x+9,y-11);cx.stroke(); // stock
+  cx.beginPath();cx.arc(x,y-6,9,0.35,Math.PI-0.35);cx.stroke();       // arms
+}
+function isNight(){ const h=state.timeOfDay*24; return h<6.5||h>18.5; }
+
+// ---------- Render ----------
+function draw(){
+  const t=performance.now()/1000;
+  cx.save();
+  // ground
+  cx.fillStyle=GRASS;cx.fillRect(0,0,cv.width,cv.height);
+  cx.translate(-cam.x,-cam.y);
+
+  // grass texture patches
+  cx.fillStyle=GRASS2;
+  for(let gx=Math.floor(cam.x/180)*180;gx<cam.x+cv.width;gx+=180)
+    for(let gy=Math.floor(cam.y/180)*180;gy<cam.y+cv.height;gy+=180)
+      if(((gx*7+gy*13)/180)%3<1) cx.fillRect(gx,gy,90,90);
+
+  // alumni lawn (lighter)
+  cx.fillStyle='#5c8a4c';cx.beginPath();cx.roundRect(1490,780,620,480,40);cx.fill();
+  cx.strokeStyle='rgba(216,203,174,.7)';cx.lineWidth=10;cx.beginPath();cx.roundRect(1490,780,620,480,40);cx.stroke();
+
+  // roads
+  for(const r of roads){
+    cx.fillStyle=ROAD;cx.fillRect(r.x,r.y,r.w,r.h);
+    cx.strokeStyle='#c8b830';cx.lineWidth=4;cx.setLineDash([34,26]);
+    cx.beginPath();
+    if(r.w>r.h){cx.moveTo(r.x,r.y+r.h/2);cx.lineTo(r.x+r.w,r.y+r.h/2);}
+    else{cx.moveTo(r.x+r.w/2,r.y);cx.lineTo(r.x+r.w/2,r.y+r.h);}
+    cx.stroke();cx.setLineDash([]);
+    cx.fillStyle='rgba(255,255,255,.55)';cx.font='bold 22px Georgia';cx.textAlign='center';
+    if(r.w>r.h){for(let lx=300;lx<r.w;lx+=900)cx.fillText(r.label,lx,r.y+r.h/2-16);}
+    else{cx.save();cx.translate(r.x+r.w/2+18,900);cx.rotate(Math.PI/2);cx.fillText(r.label,0,0);cx.restore();}
+  }
+  // sidewalks along roads
+  cx.fillStyle=PATH;cx.fillRect(0,250,WORLD.w,26);cx.fillRect(3354,250,26,WORLD.h);
+
+  // paths
+  cx.strokeStyle=PATH;cx.lineCap='round';
+  for(const p of paths){ if(!p[4])continue; cx.lineWidth=p[4];
+    cx.beginPath();cx.moveTo(p[0],p[1]);cx.lineTo(p[2],p[3]);cx.stroke(); }
+
+  // benches, POIs beneath entities
+  for(const b of benches)drawBench(b);
+  for(const p of pois)drawPOI(p);
+
+  // anchors
+  for(const a of anchors)if(!a.found)drawAnchor(a,t);
+
+  // y-sorted entities: buildings + trees + people + squirrels
+  const ents=[];
+  for(const b of buildings)ents.push({y:b.y+b.h,f:()=>drawBuilding(b)});
+  for(const tr of trees)ents.push({y:tr.y,f:()=>drawTree(tr)});
+  for(const l of lamps)ents.push({y:l.y,f:()=>drawLamp(l,isNight())});
+  for(const n of npcs)ents.push({y:n.y,f:()=>{
+    drawPerson(n.x,n.y,0,n.step,n.shirt,n.skin,Math.hypot(n.tx-n.x,n.ty-n.y)>=6);
+    if(Math.hypot(player.x-n.x,player.y-n.y)<110){
+      cx.font='12px Georgia';const w=cx.measureText(n.quote).width;
+      cx.fillStyle='rgba(255,255,255,.92)';cx.beginPath();cx.roundRect(n.x-w/2-8,n.y-70,w+16,22,8);cx.fill();
+      cx.fillStyle='#222';cx.textAlign='center';cx.fillText(n.quote,n.x,n.y-55);
+    }}});
+  for(const s of squirrels)ents.push({y:s.y,f:()=>drawSquirrel(s)});
+  ents.push({y:player.y,f:()=>{
+    drawPerson(player.x,player.y,player.dir,player.step,'#CFAE70','#e8c39e',player.moving);
+    if(player.boost>0){cx.fillStyle='rgba(232,200,126,.8)';cx.font='13px Georgia';cx.textAlign='center';
+      cx.fillText('☕'+Math.ceil(player.boost),player.x,player.y-52);}
+  }});
+  ents.sort((a,b)=>a.y-b.y);
+  for(const e of ents)e.f();
+
+  // particles
+  for(const p of state.particles){
+    cx.globalAlpha=Math.max(0,Math.min(1,p.life));
+    cx.fillStyle=p.c;cx.beginPath();cx.arc(p.x,p.y,p.r,0,7);cx.fill();
+  }
+  cx.globalAlpha=1;
+  cx.restore();
+
+  // ---------- lighting / day-night ----------
+  const h=state.timeOfDay*24;
+  let dark=0;
+  if(h<5.5)dark=.72;
+  else if(h<7.5)dark=.72*(1-(h-5.5)/2);
+  else if(h<17.5)dark=0;
+  else if(h<20)dark=.72*((h-17.5)/2.5);
+  else dark=.72;
+  if(dark>0.02){
+    lcx.clearRect(0,0,lightCv.width,lightCv.height);
+    lcx.fillStyle=`rgba(10,14,34,${dark})`;
+    lcx.fillRect(0,0,lightCv.width,lightCv.height);
+    lcx.globalCompositeOperation='destination-out';
+    const hole=(wx,wy,r,a)=>{
+      const sx=wx-cam.x,sy=wy-cam.y;
+      if(sx<-r||sy<-r||sx>cv.width+r||sy>cv.height+r)return;
+      const g=lcx.createRadialGradient(sx,sy,0,sx,sy,r);
+      g.addColorStop(0,`rgba(0,0,0,${a})`);g.addColorStop(1,'rgba(0,0,0,0)');
+      lcx.fillStyle=g;lcx.beginPath();lcx.arc(sx,sy,r,0,7);lcx.fill();
+    };
+    hole(player.x,player.y-10,150,.95);
+    for(const l of lamps)hole(l.x,l.y-44,110,.85);
+    for(const b of buildings)hole(b.x+b.w/2,b.y+b.h-20,80,.5);
+    lcx.globalCompositeOperation='source-over';
+    cx.drawImage(lightCv,0,0);
+    // warm dusk tint
+    if(dark<.5){cx.fillStyle=`rgba(255,140,60,${(0.5-Math.abs(dark-.3))*.12})`;cx.fillRect(0,0,cv.width,cv.height);}
+  }
+
+  // ---------- minimap ----------
+  if(state.minimap){
+    const mw=isTouch?Math.min(180,cv.width*.34):210,mh=mw*WORLD.h/WORLD.w,
+      mx=cv.width-mw-14,my=cv.height-mh-(isTouch?152:14),s=mw/WORLD.w;
+    cx.fillStyle='rgba(12,14,18,.82)';cx.beginPath();cx.roundRect(mx-6,my-6,mw+12,mh+12,10);cx.fill();
+    cx.strokeStyle='rgba(207,174,112,.6)';cx.lineWidth=1.5;cx.stroke();
+    cx.fillStyle='#33502c';cx.fillRect(mx,my,mw,mh);
+    cx.fillStyle='#555a61';
+    for(const r of roads)cx.fillRect(mx+r.x*s,my+r.y*s,r.w*s,r.h*s);
+    cx.fillStyle='#a08b62';
+    for(const b of buildings)cx.fillRect(mx+b.x*s,my+b.y*s,b.w*s,b.h*s);
+    cx.fillStyle='#E8C87E';
+    for(const a of anchors)if(!a.found){cx.beginPath();cx.arc(mx+a.x*s,my+a.y*s,2.2,0,7);cx.fill();}
+    cx.fillStyle='#fff';cx.beginPath();cx.arc(mx+player.x*s,my+player.y*s,3.2,0,7);cx.fill();
+    cx.strokeStyle='#fff';cx.lineWidth=1;
+    cx.strokeRect(mx+cam.x*s,my+cam.y*s,cv.width*s,cv.height*s);
+    cx.fillStyle='rgba(232,200,126,.9)';cx.font='11px Georgia';cx.textAlign='left';
+    cx.fillText(isTouch?'🗺️ — map':'M — map',mx,my-10);
+  }
+}
+
+// ---------- Main loop ----------
+function frame(ts){
+  const dt=Math.min(.05,(ts-last)/1000||0);last=ts;
+  if(state.started)update(dt);
+  draw();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ---------- Start ----------
+document.getElementById('startBtn').addEventListener('click',()=>{
+  document.getElementById('title').style.display='none';
+  state.started=true;
+  try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}
+  chime();
+  updateHUD();
+  toast('⚓ Welcome to Vanderbilt! Explore campus — hidden anchors glow gold.',4200);
+});
+updateHUD();
+</script>
+</body>
+</html>
